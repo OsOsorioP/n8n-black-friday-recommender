@@ -9,7 +9,7 @@ Una API basada en n8n, diseñada para servir recomendaciones de productos en tie
 
 El sistema ingesta el ID de un usuario, analiza su histórico transaccional en **PostgreSQL** mediante consultas optimizadas y retorna la mejor oferta en milisegundos, implementando estrategias de Graceful Degradation para asegurar un 100% de disponibilidad.
 
-![Vista previa del Workflow](/images/workflow.png)
+![Vista previa del Workflow](https://github.com/OsOsorioP/n8n-black-friday-recommender/blob/main/workflow.png)
 
 ## Tabla de Contenidos
 - [Contexto del Proyecto](#-contexto-del-proyecto)

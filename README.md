@@ -13,11 +13,11 @@ El sistema ingesta el ID de un usuario, analiza su histórico transaccional en *
 
 ## Tabla de Contenidos
 - [Contexto del Proyecto](#contexto-del-proyecto)
-- [Lógica de Recomendación](#-lógica-de-recomendación)
-- [Documentación API](#-documentación-api)
-- [Optimización SQL](#-optimización-sql)
-- [Instalación y Uso](#-instalación-y-uso)
-- [Roadmap](#-roadmap)
+- [Lógica de Recomendación](#lógica-de-recomendación)
+- [Documentación API](#documentación-api)
+- [Optimización SQL](#optimización-sql)
+- [Instalación y Uso](#instalación-y-uso)
+- [Roadmap](#roadmap)
 
 ## Contexto del Proyecto
 

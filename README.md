@@ -12,7 +12,7 @@ El sistema ingesta el ID de un usuario, analiza su histórico transaccional en *
 ![Vista previa del Workflow](https://github.com/OsOsorioP/n8n-black-friday-recommender/blob/main/workflow.png)
 
 ## Tabla de Contenidos
-- [Contexto del Proyecto](#-contexto-del-proyecto)
+- [Contexto del Proyecto](#contexto-del-proyecto)
 - [Lógica de Recomendación](#-lógica-de-recomendación)
 - [Documentación API](#-documentación-api)
 - [Optimización SQL](#-optimización-sql)

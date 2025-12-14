@@ -1,0 +1,251 @@
+{
+  "name": "BlackFriday_Recomendador_Oscar Osorio",
+  "nodes": [
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT \n    categoria,\n    COUNT(*) as total_compras\nFROM ventas\nWHERE user_id = $1::integer\n    AND fecha >= NOW() - INTERVAL '12 months'\nGROUP BY categoria\nORDER BY total_compras DESC\nLIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ $json.query.user_id || $json.body.user_id }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        384,
+        464
+      ],
+      "id": "8662ec1f-85cd-4423-9c76-6469d7934668",
+      "name": "SQL - Consultar Historial",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "fSVpqjSaWhzByD24",
+          "name": "Supabase"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const sqlResult = items[0].json || {};\n\nlet recommendation = \"Top Ventas General\";\nlet categoria = null;\nlet hasHistory = false;\nlet dbStatus = \"ok\";\n\nif (items[0].error || (sqlResult && sqlResult.error)) {\n  dbStatus = \"db_failure_fallback\";\n} \n\nelse if (sqlResult?.categoria && sqlResult?.total_compras > 0) {\n  categoria = sqlResult.categoria;\n  hasHistory = true;\n  \n  switch (categoria.toLowerCase()) {\n    case \"tecnologia\":\n    case \"technology\":\n      recommendation = \"Accesorios PC\";\n      break;\n\n    case \"moda\":\n    case \"fashion\":\n      recommendation = \"Nueva Colección Invierno\";\n      break;\n\n    case \"hogar\":\n    case \"home\":\n      recommendation = \"Decoración Navideña\";\n      break;\n      \n    default:\n      recommendation = \"Top Ventas General\";\n  }\n}\n\nreturn [\n  {\n    json: {\n      user_id: $json.query?.user_id || $json.body?.user_id,\n      recommendation: recommendation,\n      context: {\n        categoria_preferida: categoria,\n        has_purchase_history: hasHistory,\n        system_status: dbStatus\n      },\n      timestamp: new Date().toISOString()\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        608,
+        464
+      ],
+      "id": "1adfed00-a7e7-479b-927b-69807040beaa",
+      "name": "Code - Lógica + Fallback"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        864,
+        464
+      ],
+      "id": "9a490b6d-f3fc-4113-9566-5c8286517d99",
+      "name": "Response - Enviar Recomendación"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"error\": \"user_id is required\",\n  \"recommendation\": \"Top Ventas General\"\n}",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        96,
+        560
+      ],
+      "id": "d894924c-f2d7-4f34-94e8-c717b2cbc054",
+      "name": "Error - Sin user_id"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "b1e63976-f20d-4a05-9413-5b4b17d134bf",
+              "leftValue": "={{ $json.query.user_id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -112,
+        480
+      ],
+      "id": "d59232c0-cf13-4256-9284-15d3d36fbec9",
+      "name": "Validar user_id"
+    },
+    {
+      "parameters": {
+        "path": "recommend",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -304,
+        480
+      ],
+      "id": "40d86fb1-ef10-4d33-80c7-9a625074f945",
+      "name": "Webhook - Recibir user_id",
+      "webhookId": "0f2984dd-531a-43bf-b181-3993d7db4b40"
+    },
+    {
+      "parameters": {
+        "content": "## 1. Entrada y Validación\nEn este paso se recibe la petición HTTP (GET/POST). Validamos que el parámetro `user_id` exista. \n- **Si existe:** Pasamos a procesar. \n- **No existe:** Devolvemos Error 400 Bad Request.",
+        "height": 416,
+        "width": 640,
+        "color": 7
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -352,
+        288
+      ],
+      "typeVersion": 1,
+      "id": "cc451d07-f354-4b37-a75e-6d33bb2d7f67",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "content": "## 2. Lógica Core y Resiliencia\nAquí ocurre la magia:\n1. **SQL Optimizado:** Se extrae solo 1 fila (`LIMIT 1`) para máxima velocidad.\n2. **Code Node:** Evalúa la categoría y asigna el producto.\n3. **Circuit Breaker:** Si la DB falla, activamos el modo \\\"Fallback\\\".",
+        "height": 416,
+        "width": 448,
+        "color": 7
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        320,
+        288
+      ],
+      "typeVersion": 1,
+      "id": "da22f186-6b0c-46da-9fce-8d7afc598640",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "content": "## 3. Salida\nEntrega el JSON final al cliente en milisegundos.",
+        "height": 416,
+        "color": 7
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        800,
+        288
+      ],
+      "typeVersion": 1,
+      "id": "cc68d7c3-1f13-49fe-820a-0af4aa4c8355",
+      "name": "Sticky Note2"
+    },
+    {
+      "parameters": {
+        "content": "## Black Friday Recommender\nEste microservicio recibe un `user_id`, consulta su historial de compras y devuelve la mejor oferta personalizada en milissegundos. Esta diseñado para alta concurrencia.\n\n### Cómo funciona\n1. **Server-Side Filtering:** La Query SQL (`LIMIT 1`) optimiza el tráfico de red.\n2. **Graceful Degradation:** Si la DB falla, el sistema devuelve un \\\"Fallback\\\" automático (Top Ventas) sin romper el flujo.\n3. **Validación:** Control estricto de inputs y códigos HTTP (400/200).\n\n### Pasos de configuración\n- Configurar credencial **PostgreSQL** en el nodo SQL.\n- Asegurar que la tabla `ventas` tenga índice en `user_id`.",
+        "height": 464,
+        "width": 336
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -720,
+        288
+      ],
+      "typeVersion": 1,
+      "id": "d146c00d-557d-426c-993a-dfa1246bfdb4",
+      "name": "Sticky Note3"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "SQL - Consultar Historial": {
+      "main": [
+        [
+          {
+            "node": "Code - Lógica + Fallback",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Lógica + Fallback": {
+      "main": [
+        [
+          {
+            "node": "Response - Enviar Recomendación",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validar user_id": {
+      "main": [
+        [
+          {
+            "node": "SQL - Consultar Historial",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Error - Sin user_id",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook - Recibir user_id": {
+      "main": [
+        [
+          {
+            "node": "Validar user_id",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "0328e770-24d1-49a6-b4eb-353073c44a54",
+  "meta": {
+    "instanceId": "607a71226c056db25e3cab3a1797b8f8467f0d1f5e8999312ec94db583cefcc1"
+  },
+  "id": "T7wviwp8qKMuL5AE",
+  "tags": []
+}
